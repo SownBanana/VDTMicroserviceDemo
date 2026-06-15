@@ -9,7 +9,7 @@ Project demo này minh họa cách tách một nền tảng đào tạo trực t
 - Có nghiệp vụ đủ rõ để demo phân quyền:
   - Admin đăng nhập vào dashboard để quản lý thành viên, khóa học và thông báo.
   - Học viên đăng nhập, đăng ký khóa học, xem thông báo cá nhân, đánh dấu đã đọc và đánh dấu học xong.
-- Minh họa giao tiếp service-to-service: `course-service` gọi `notification-service` khi học viên đăng ký hoặc hoàn thành khóa học.
+- Minh họa event-driven communication: `course-service` publish event khi học viên đăng ký hoặc hoàn thành khóa học, `notification-service` consume event để tạo thông báo.
 
 ## Công nghệ
 
@@ -17,6 +17,7 @@ Project demo này minh họa cách tách một nền tảng đào tạo trực t
 - API Gateway: Node.js, Express, http-proxy-middleware.
 - Services: Node.js, Express, Mongoose.
 - Database: MongoDB 7, mỗi service một database/container riêng.
+- Event broker: RabbitMQ.
 - Runtime: Docker Compose.
 
 ## Cấu trúc thư mục
@@ -53,7 +54,8 @@ flowchart LR
   UserService --> UserDb[("MongoDB users")]
   CourseService --> CourseDb[("MongoDB courses")]
   NotificationService --> NotificationDb[("MongoDB notifications")]
-  CourseService --> NotificationService
+  CourseService --> RabbitMQ["RabbitMQ event broker"]
+  RabbitMQ --> NotificationService
 ```
 
 Gateway publish ra host tại `localhost:8081`. Các service chỉ giao tiếp trong Docker network.
@@ -84,6 +86,7 @@ Mở ứng dụng:
 - Frontend: http://localhost:5173
 - API Gateway: http://localhost:8081
 - Health check: http://localhost:8081/health
+- RabbitMQ Management UI: http://localhost:15672 (`guest` / `guest`)
 
 Nạp lại dữ liệu mẫu:
 
@@ -234,6 +237,29 @@ curl -X POST http://localhost:8081/api/notifications \
 curl -X PATCH http://localhost:8081/api/notifications/NOTIFICATION_ID/read
 ```
 
+## Event-driven demo
+
+RabbitMQ được dùng cho các event nghiệp vụ phát sinh từ `course-service`.
+
+| Hành động | Service publish | Event | Service consume | Kết quả |
+| --- | --- | --- | --- | --- |
+| Học viên đăng ký khóa học | `course-service` | `CourseEnrollmentCreated` | `notification-service` | Tạo thông báo đăng ký thành công |
+| Học viên bấm học xong | `course-service` | `CourseCompleted` | `notification-service` | Tạo thông báo hoàn thành khóa học |
+
+RabbitMQ Management UI:
+
+- URL: http://localhost:15672
+- Username: `guest`
+- Password: `guest`
+
+Các thành phần chính:
+
+- Exchange: `vdt.events`
+- Queue: `notification-service.course-events`
+- Routing keys:
+  - `course.enrollment.created`
+  - `course.completed`
+
 ## Scripts
 
 | Lệnh | Ý nghĩa |
@@ -309,5 +335,5 @@ docker compose up --build -d frontend
 ## Ghi chú kiến trúc
 
 - Demo dùng đăng nhập đơn giản bằng email/password lưu thẳng trong database để phục vụ minh họa. Không dùng cho production.
-- Service-to-service communication hiện dùng HTTP trực tiếp để dễ quan sát. Với hệ thống thật, luồng thông báo có thể chuyển sang message broker như Kafka, RabbitMQ hoặc NATS.
+- Luồng đăng ký/học xong đang dùng RabbitMQ để minh họa event-driven. `course-service` publish event, `notification-service` consume event và tạo thông báo.
 - Mỗi service có MongoDB riêng, tránh query chéo database. Nếu service cần dữ liệu từ service khác, hãy đi qua API hoặc event.

@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import mongoose from "mongoose";
 import morgan from "morgan";
+import { startCourseEventConsumer } from "./events.js";
 import { Notification } from "./models/Notification.js";
 
 const app = express();
@@ -84,6 +85,7 @@ app.use((error, _req, res, _next) => {
 });
 
 await mongoose.connect(mongoUri);
+await startCourseEventConsumer();
 app.listen(port, () => {
   console.log(`notification-service listening on ${port}`);
 });

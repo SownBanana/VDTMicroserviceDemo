@@ -1,15 +1,13 @@
-import axios from "axios";
 import cors from "cors";
 import express from "express";
 import mongoose from "mongoose";
 import morgan from "morgan";
+import { initEventPublisher, publishCourseEvent } from "./events.js";
 import { Course } from "./models/Course.js";
 
 const app = express();
 const port = process.env.PORT || 3002;
 const mongoUri = process.env.MONGO_URI || "mongodb://localhost:27017/vdt_courses";
-const notificationServiceUrl =
-  process.env.NOTIFICATION_SERVICE_URL || "http://localhost:3003";
 
 app.use(cors());
 app.use(express.json());
@@ -84,11 +82,11 @@ app.post("/enrollments", async (req, res, next) => {
     );
     if (!course) return res.status(404).json({ message: "Không tìm thấy khóa học" });
 
-    await axios.post(`${notificationServiceUrl}/notifications`, {
+    publishCourseEvent("course.enrollment.created", {
+      type: "CourseEnrollmentCreated",
+      courseId: course.id,
       userId,
-      title: "Đăng ký khóa học thành công",
-      message: `Bạn đã đăng ký khóa học ${course.title}.`,
-      type: "course"
+      courseTitle: course.title
     });
 
     res.status(201).json({
@@ -116,11 +114,11 @@ app.post("/enrollments/complete", async (req, res, next) => {
       return res.status(404).json({ message: "Không tìm thấy đăng ký khóa học" });
     }
 
-    await axios.post(`${notificationServiceUrl}/notifications`, {
+    publishCourseEvent("course.completed", {
+      type: "CourseCompleted",
+      courseId: course.id,
       userId,
-      title: "Đã hoàn thành khóa học",
-      message: `Bạn đã hoàn thành khóa học ${course.title}.`,
-      type: "course"
+      courseTitle: course.title
     });
 
     res.json({
@@ -139,6 +137,7 @@ app.use((error, _req, res, _next) => {
 });
 
 await mongoose.connect(mongoUri);
+await initEventPublisher();
 app.listen(port, () => {
   console.log(`course-service listening on ${port}`);
 });
