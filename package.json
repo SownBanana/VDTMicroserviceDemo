@@ -1,0 +1,16 @@
+{
+  "name": "vdt-microservice-demo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "VDT online learning platform demo built with React, Node.js, MongoDB, and an API gateway.",
+  "scripts": {
+    "dev": "docker compose up --build",
+    "down": "docker compose down",
+    "logs": "docker compose logs -f",
+    "seed": "docker compose exec user-service npm run seed && docker compose exec course-service npm run seed && docker compose exec notification-service npm run seed"
+  },
+  "workspaces": [
+    "apps/*",
+    "services/*"
+  ]
+}

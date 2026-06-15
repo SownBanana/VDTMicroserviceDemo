@@ -1,0 +1,74 @@
+services:
+  frontend:
+    build:
+      context: ./apps/frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE_URL: http://localhost:8081/api
+    depends_on:
+      - api-gateway
+
+  api-gateway:
+    build:
+      context: ./apps/api-gateway
+    ports:
+      - "8081:8080"
+    environment:
+      PORT: 8080
+      USER_SERVICE_URL: http://user-service:3001
+      COURSE_SERVICE_URL: http://course-service:3002
+      NOTIFICATION_SERVICE_URL: http://notification-service:3003
+    depends_on:
+      - user-service
+      - course-service
+      - notification-service
+
+  user-service:
+    build:
+      context: ./services/user-service
+    environment:
+      PORT: 3001
+      MONGO_URI: mongodb://user-mongo:27017/vdt_users
+    depends_on:
+      - user-mongo
+
+  course-service:
+    build:
+      context: ./services/course-service
+    environment:
+      PORT: 3002
+      MONGO_URI: mongodb://course-mongo:27017/vdt_courses
+      NOTIFICATION_SERVICE_URL: http://notification-service:3003
+    depends_on:
+      - course-mongo
+      - notification-service
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+    environment:
+      PORT: 3003
+      MONGO_URI: mongodb://notification-mongo:27017/vdt_notifications
+    depends_on:
+      - notification-mongo
+
+  user-mongo:
+    image: mongo:7
+    volumes:
+      - user_mongo_data:/data/db
+
+  course-mongo:
+    image: mongo:7
+    volumes:
+      - course_mongo_data:/data/db
+
+  notification-mongo:
+    image: mongo:7
+    volumes:
+      - notification_mongo_data:/data/db
+
+volumes:
+  user_mongo_data:
+  course_mongo_data:
+  notification_mongo_data:
